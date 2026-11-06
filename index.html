@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lector OT Digital</title>
+
+  <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #0f172a;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 25px 16px;
+    }
+
+    h1 { font-size: 24px; }
+
+    p { color: #cbd5e1; }
+
+    video {
+      width: 100%;
+      max-width: 480px;
+      border-radius: 14px;
+      background: #000;
+      margin-top: 18px;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 15px 22px;
+      border-radius: 10px;
+      font-size: 16px;
+      margin-top: 18px;
+      cursor: pointer;
+    }
+
+    #estado {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>CONTROL OT DIGITAL</h1>
+  <p>Escanea el código de barras de tu orden de trabajo.</p>
+
+  <button id="btnEscanear" onclick="iniciarCamara()">
+    Abrir cámara
+  </button>
+
+  <video id="video" autoplay muted playsinline></video>
+
+  <div id="estado">Esperando escaneo...</div>
+
+  <script>
+    const APP_URL =
+      "https://script.google.com/macros/s/AKfycbys69sIZm6d20h7BO88ra5_f2gmd0JYFWEVSmnyKyEgDI0lgrgCL9fHUrCX24ncesgysQ/exec";
+
+    let lector = null;
+    let procesando = false;
+
+    async function iniciarCamara() {
+      const estado = document.getElementById("estado");
+      const boton = document.getElementById("btnEscanear");
+
+      boton.disabled = true;
+      estado.textContent = "Abriendo cámara...";
+
+      try {
+        if (!window.ZXing) {
+          throw new Error("No se pudo cargar la biblioteca ZXing.");
+        }
+
+        lector = new ZXing.BrowserMultiFormatReader();
+
+        await lector.decodeFromVideoDevice(
+          undefined,
+          "video",
+          (resultado, error) => {
+            if (!resultado || procesando) return;
+
+            const codigo = String(resultado.getText())
+              .trim()
+              .toUpperCase();
+
+            if (!/^OT-\d+$/.test(codigo)) {
+              estado.textContent =
+                "Código no válido: " + codigo;
+              return;
+            }
+
+            procesando = true;
+            estado.textContent = "OT detectada: " + codigo;
+
+            lector.reset();
+
+            const destino = new URL(APP_URL);
+            destino.searchParams.set("ot", codigo);
+
+            window.location.assign(destino.toString());
+          }
+        );
+
+        estado.textContent = "Apunta al código de barras.";
+
+      } catch (error) {
+        estado.textContent =
+          "No se pudo abrir la cámara: " + error.message;
+
+        boton.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
